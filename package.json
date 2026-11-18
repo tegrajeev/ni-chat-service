@@ -3,15 +3,23 @@
   "version": "1.0.0",
   "description": "Text-to-SQL chat service for NI_hackathon_data",
   "scripts": {
+    "dev": "tsx watch src/server.ts",
     "test": "tsx --test src/*.test.ts",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "eval": "tsx scripts/eval.ts"
   },
   "dependencies": {
+    "cors": "2.8.6",
+    "dotenv": "18.0.10",
     "express": "4.21.1",
+    "express-rate-limit": "8.7.4",
+    "helmet": "8.3.0",
     "mssql": "11.0.1",
-    "node-sql-parser": "5.3.4"
+    "node-sql-parser": "5.3.4",
+    "zod": "4.6.7"
   },
   "devDependencies": {
+    "@types/cors": "2.8.19",
     "@types/express": "5.0.0",
     "@types/mssql": "9.1.5",
     "@types/node": "22.9.0",
