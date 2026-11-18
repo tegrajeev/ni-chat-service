@@ -1,0 +1,1510 @@
+{
+ "database": "NI_hackathon_data",
+ "schema": "dbo",
+ "source": "NI_Table_Schema.xlsx (design document). The service must merge this with the live INFORMATION_SCHEMA; live column names win.",
+ "tables": [
+  {
+   "table": "PlanDetails",
+   "layer": "golden",
+   "description": "One row per Medicare Advantage plan bid (BidId = contract-plan-segment). Benefits and star rating. Not every BidId in PlanNetworkMapping exists here.",
+   "columns": [
+    {
+     "name": "BidId",
+     "type": "Varchar(20)",
+     "pk": true
+    },
+    {
+     "name": "PlanName",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "OverAllStarRating",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "MonthlyPremium",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "HealthDeductible",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "MOOP",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "PartBGiveBack",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "StarRatingYear",
+     "type": "Varchar(25)",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "BidIds from Landscape/PlanDetails table are limited , Network and Bid mapping from Ideon might contain additional BidIds, hence no Foreign key at BidId level in PlanNetworkMapping. We can add Networktable Bidids without additional info. in PlanDetails table."
+   ]
+  },
+  {
+   "table": "ProviderDetails",
+   "layer": "golden",
+   "description": "One row per provider NPI (individual practitioners). Names and dual-eligible flag.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": true
+    },
+    {
+     "name": "SecondaryNPI",
+     "type": "Varchar(10)",
+     "pk": false
+    },
+    {
+     "name": "PresentationName",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "FirstName",
+     "type": "Varchar(50)",
+     "pk": false
+    },
+    {
+     "name": "LastName",
+     "type": "Varchar(50)",
+     "pk": false
+    },
+    {
+     "name": "IsDualProvider",
+     "type": "Varchar(3)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "Speciality",
+   "layer": "golden",
+   "description": "Specialty lookup. Use HWAISpecialtyDescription for user-facing specialty names (e.g. 'Cardiology').",
+   "columns": [
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": true
+    },
+    {
+     "name": "HWAISpecialtyDescription",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "SubSpecialityName",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "NPIType",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "SpecialtyName",
+     "type": "Varchar(100)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "LanguageProviderMapping",
+   "layer": "golden",
+   "description": "Languages a provider speaks.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "Language",
+     "type": "Varchar(50)",
+     "pk": false
+    },
+    {
+     "name": "LanguageProficiency",
+     "type": "Varchar(25)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "ProviderScoreDetails",
+   "layer": "golden",
+   "description": "Provider quality/cost/utilization scores at NPI x FIPS x specialty level (PCP scores are at NPI x FIPS level). Non-numeric scores are stored as -1.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "Speciality.SpecialityCode"
+    },
+    {
+     "name": "QualityScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "MAUtilizationScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "QualityScoreConfidence",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "FFSUtilizationScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "CostScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "CostScoreConfidence",
+     "type": "Varchar(25)",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "These scores are at 2 level, for PCP it is at NPI*FIPS*New_Flag level, while others are at NPI*FIPS*Speciality level. This should be changes from Prod. team and require Speciality values against PCP(even if scores remain same). Informed Aviral"
+   ]
+  },
+  {
+   "table": "LanguageGeographyMapping",
+   "layer": "golden",
+   "description": "Population by language spoken in each county, with rank.",
+   "columns": [
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    },
+    {
+     "name": "Language",
+     "type": "Varchar(50)",
+     "pk": false
+    },
+    {
+     "name": "Population",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "Rank",
+     "type": "Int",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "ProviderLocation",
+   "layer": "golden",
+   "description": "Each practice location of a provider. Carries the county (FIPS) and ZIP. NetworkProviderMapping points here, not to the NPI directly.",
+   "columns": [
+    {
+     "name": "ProviderLocationId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "AddressFirstLine",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "AddressSecondLine",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "City",
+     "type": "Varchar(50)",
+     "pk": false
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    },
+    {
+     "name": "ZipCode",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "Latitude",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "Longitude",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "LocationConfidence",
+     "type": "Varchar(50)",
+     "pk": false,
+     "note": "confidence at county level"
+    },
+    {
+     "name": "LocationConfidenceAddressLevel",
+     "type": "Varchar(50)",
+     "pk": false,
+     "note": "Confidence at address line"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "HospitalDetails",
+   "layer": "golden",
+   "description": "One row per hospital/facility (HospitalId), with its primary NPI, address and county. Column name is spelled HosptitalName in the design.",
+   "columns": [
+    {
+     "name": "HospitalId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "HospitalNPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "note": "aka primaryNPI_Id"
+    },
+    {
+     "name": "HosptitalName",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "PrimaryNPIName",
+     "type": "Varchar(100)",
+     "pk": false,
+     "note": "can be same as HospitalName"
+    },
+    {
+     "name": "StreetAddress",
+     "type": "Varchar(100)",
+     "pk": false,
+     "note": "aka address_first_line"
+    },
+    {
+     "name": "City",
+     "type": "Varchar(50)",
+     "pk": false
+    },
+    {
+     "name": "ZipCode",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    },
+    {
+     "name": "Latitude",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "Longitude",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "Speciality.SpecialityCode"
+    },
+    {
+     "name": "AddressFlag",
+     "type": "Varchar(25)",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "Lat/Lon can be problematic - check and remove with miles"
+   ]
+  },
+  {
+   "table": "ParentOrganization",
+   "layer": "golden",
+   "description": "Payer parent organizations (e.g. Humana Inc., UnitedHealth Group). The 'competitor' in network comparisons.",
+   "columns": [
+    {
+     "name": "ParentOrganizationId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "ParentOrganizationName",
+     "type": "Varchar(100)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "HospitalScores",
+   "layer": "golden",
+   "description": "Hospital attributes and scores: HealthSystem name, Medicare certified beds, ratings, teaching status.",
+   "columns": [
+    {
+     "name": "HospitalId",
+     "type": "Int",
+     "pk": false,
+     "references": "HospitalDetails.HospitalId"
+    },
+    {
+     "name": "HealthSystem",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "MedicareCertifiedBeds",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "HGIRating",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "HCAHPSRating",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "TeachingNonTeaching",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "NPIQualityScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "NPIValueScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "NPIFFSUtilizationScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "NPIMAUtilizationScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "NPICostScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "QualityScoreConfidence",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "FacilityId",
+     "type": null,
+     "pk": false
+    }
+   ],
+   "notes": [
+    "HospitalScore- NPI*FIPS*Address FirstLine*Speciality",
+    "When we expand to medicaid, score columns will increase, & flag col. for identification"
+   ]
+  },
+  {
+   "table": "GroupDetails",
+   "layer": "golden",
+   "description": "Physician groups (GroupTIN = tax ID): name, size, specialty and group-level scores. Temporary table in the design.",
+   "columns": [
+    {
+     "name": "GroupTIN",
+     "type": "Varchar(10)",
+     "pk": true,
+     "note": "same as OrganizationId?"
+    },
+    {
+     "name": "GroupName",
+     "type": "Varchar(255)",
+     "pk": false
+    },
+    {
+     "name": "GroupSize",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "GroupCostScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "GroupQualityScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "GroupFFSUtilizationScore",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "GroupMAUtilizationScore",
+     "type": "Int",
+     "pk": false,
+     "note": "TIN*FIPS"
+    },
+    {
+     "name": "GroupMAFFSScore",
+     "type": "Int",
+     "pk": false,
+     "note": "No Clarity"
+    },
+    {
+     "name": "GroupConfidence",
+     "type": "Int",
+     "pk": false,
+     "note": "TIN*ParentOrg*PlanType"
+    },
+    {
+     "name": "GroupSource",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "GroupNPI",
+     "type": "Int",
+     "pk": false,
+     "note": "list of NPIs, can be in a separate table - TIN*ParentOrg*PlanType"
+    },
+    {
+     "name": "GroupSpeciality",
+     "type": "Varchar(255)",
+     "pk": false
+    },
+    {
+     "name": "GroupSpecialityFlag",
+     "type": "Varchar(10)",
+     "pk": false
+    },
+    {
+     "name": "IsMultiSpeciality",
+     "type": "Bit",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "Since Grp-Grp Data is not prepared yet, we are creating a temporary GroupDetails table with only the fields required in NPI search and PNC"
+   ]
+  },
+  {
+   "table": "State",
+   "layer": "golden",
+   "description": "State lookup (StateCode, StateName).",
+   "columns": [
+    {
+     "name": "StateCode",
+     "type": "Varchar(2)",
+     "pk": true
+    },
+    {
+     "name": "StateName",
+     "type": "Varchar(50)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "Network",
+   "layer": "golden",
+   "description": "Provider networks (NetworkId) with name, category and carrier.",
+   "columns": [
+    {
+     "name": "NetworkId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "NetworkName",
+     "type": "Varchar(225)",
+     "pk": false
+    },
+    {
+     "name": "NetworkCategory",
+     "type": "Varchar(100)",
+     "pk": false
+    },
+    {
+     "name": "Carrier_Name",
+     "type": "Varchar(100)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "County",
+   "layer": "golden",
+   "description": "County lookup by 5-digit FIPS, with StateCode.",
+   "columns": [
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": true
+    },
+    {
+     "name": "CountyName",
+     "type": "Varchar(50)",
+     "pk": false
+    },
+    {
+     "name": "StateCode",
+     "type": "Varchar(2)",
+     "pk": false,
+     "references": "State.StateCode"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "EnrollmentDetails",
+   "layer": "golden",
+   "description": "Plan enrollment by county (BidId x FIPS), plus AEP enrollment growth.",
+   "columns": [
+    {
+     "name": "BidId",
+     "type": "Varchar(20)",
+     "pk": false,
+     "references": "PlanDetails.BidId"
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    },
+    {
+     "name": "Enrollment",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "AEPEnrollmentGrowth",
+     "type": "Int",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "PlanNetworkMapping",
+   "layer": "golden_mapping",
+   "description": "Which network each plan bid uses (BidId -> NetworkId).",
+   "columns": [
+    {
+     "name": "BidId",
+     "type": "Varchar(20)",
+     "pk": false,
+     "references": "PlanDetails.BidId"
+    },
+    {
+     "name": "NetworkId",
+     "type": "Int",
+     "pk": false,
+     "references": "Network.NetworkId"
+    },
+    {
+     "name": "ClientId",
+     "type": "Int",
+     "pk": false,
+     "references": "ClientDetails.ClientId"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "NetworkHospitalMapping",
+   "layer": "golden_mapping",
+   "description": "Which hospitals are in each network. Documented as highly accurate.",
+   "columns": [
+    {
+     "name": "HospitalId",
+     "type": "Int",
+     "pk": false,
+     "references": "HospitalDetails.HospitalId"
+    },
+    {
+     "name": "NetworkId",
+     "type": "Int",
+     "pk": false,
+     "references": "Network.NetworkId"
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    }
+   ],
+   "notes": [
+    "The accuracy of this table is extremely high"
+   ]
+  },
+  {
+   "table": "NetworkProviderMapping",
+   "layer": "golden_mapping",
+   "description": "Which provider locations are in each network, and which parent organization owns the network. Core table for network size and overlap.",
+   "columns": [
+    {
+     "name": "ParentOrganizationId",
+     "type": "Int",
+     "pk": false,
+     "references": "ParentOrganization.ParentOrganizationId"
+    },
+    {
+     "name": "NetworkId",
+     "type": "Int",
+     "pk": false,
+     "references": "Network.NetworkId"
+    },
+    {
+     "name": "ProviderLocationId",
+     "type": "Int",
+     "pk": false,
+     "references": "ProviderLocation.ProviderLocationId"
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "ProviderGroupAffiliation",
+   "layer": "golden_mapping",
+   "description": "Provider (NPI) to physician group (GroupTIN), with beneficiary count and a primary-affiliation flag.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "GroupTIN",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "GroupDetails.GroupTIN"
+    },
+    {
+     "name": "BeneficiaryCount",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "PrimaryGroupAffiliation",
+     "type": "Bit",
+     "pk": false
+    },
+    {
+     "name": "IsNI",
+     "type": "Bit",
+     "pk": false
+    },
+    {
+     "name": "Is_NIPlus",
+     "type": "Bit",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "ProviderSpecialityMapping",
+   "layer": "golden_mapping",
+   "description": "Provider (NPI) to specialty. A provider can have several rows (SpecialityFlag = Primary / Secondary / Claim).",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "Speciality.SpecialityCode"
+    },
+    {
+     "name": "SpecialityFlag",
+     "type": "Varchar(25)",
+     "pk": false
+    },
+    {
+     "name": "SpecialitySourceFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "SpecialitySourceFlagInfo.SpecialitySourceFlagCode"
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    }
+   ],
+   "notes": [
+    "Should we take columns as PrimarySpeciality/ SecondarySpeciality?"
+   ]
+  },
+  {
+   "table": "SpecialityCodeHSDMapping",
+   "layer": "golden_mapping",
+   "description": "CMS network-adequacy (HSD) specialty names per specialty code. A code can map to several HSD names.",
+   "columns": [
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "Speciality.SpecialityCode"
+    },
+    {
+     "name": "HSDSpecialityName",
+     "type": "Varchar(100)",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "This table is used only for Demo Portal. There can be multiple HSDName against 1 Speciality code"
+   ]
+  },
+  {
+   "table": "ProviderHospitalAffiliation",
+   "layer": "golden_mapping",
+   "description": "Provider (NPI) to hospital (HospitalNPI) with health system and beneficiary count. HospitalNPI is Int here but Varchar in HospitalDetails.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "HospitalNPI",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "BeneficiaryCount",
+     "type": "Int",
+     "pk": false
+    },
+    {
+     "name": "PrimaryHospitalAffiliation",
+     "type": "Bit",
+     "pk": false
+    },
+    {
+     "name": "HealthSystem",
+     "type": "Varchar(100)",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "Should we map it to HospitalId instead of HospitalNPI?",
+    "V Important to be accurate",
+    "Check HospitalNPI datatype"
+   ]
+  },
+  {
+   "table": "MilesIndividual_10",
+   "layer": "analytical",
+   "description": "Providers (NPI) whose location is within 10 miles of a county (Isochrone_FIPS). Used for access/adequacy.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "NPI_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "Isochrone_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "Speciality.SpecialityCode"
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "MilesHospital_10",
+   "layer": "analytical",
+   "description": "Hospitals within 10 miles of a county.",
+   "columns": [
+    {
+     "name": "HospitalId",
+     "type": "Int",
+     "pk": false,
+     "references": "HospitalDetails.HospitalId"
+    },
+    {
+     "name": "NPI_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "Isochrone_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "NetworkCountbyFIPS",
+   "layer": "analytical",
+   "description": "Precomputed: number of networks each provider (NPI x specialty) is in, per county.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    },
+    {
+     "name": "NetworkCount",
+     "type": "Int",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "MilesHospital_30",
+   "layer": "analytical",
+   "description": "Hospitals within 30 miles of a county.",
+   "columns": [
+    {
+     "name": "HospitalId",
+     "type": "Int",
+     "pk": false,
+     "references": "HospitalDetails.HospitalId"
+    },
+    {
+     "name": "NPI_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "Isochrone_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "NetworkCountbyZIP",
+   "layer": "analytical",
+   "description": "Precomputed: number of networks each provider is in, per ZIP.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "ZipCode",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    },
+    {
+     "name": "NetworkCount",
+     "type": "Int",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "MilesIndividual_30",
+   "layer": "analytical",
+   "description": "Providers within 30 miles of a county.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "NPI_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "Isochrone_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "Speciality.SpecialityCode"
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "MilesHospital_60",
+   "layer": "analytical",
+   "description": "Hospitals within 60 miles of a county.",
+   "columns": [
+    {
+     "name": "HospitalId",
+     "type": "Int",
+     "pk": false,
+     "references": "HospitalDetails.HospitalId"
+    },
+    {
+     "name": "NPI_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "Isochrone_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "MilesIndividual_60",
+   "layer": "analytical",
+   "description": "Providers within 60 miles of a county.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "NPI_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "Isochrone_FIPS",
+     "type": "Varchar(5)",
+     "pk": false
+    },
+    {
+     "name": "SpecialityCode",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "Speciality.SpecialityCode"
+    },
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": false,
+     "references": "DataFlagInfo.DataFlagCode"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "ProviderAddressCount",
+   "layer": "analytical",
+   "description": "Number of addresses per provider per county.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": "Varchar(10)",
+     "pk": false,
+     "references": "ProviderDetails.NPI"
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    },
+    {
+     "name": "Complete_Address",
+     "type": "Varchar(max)",
+     "pk": false
+    },
+    {
+     "name": "Addresses_Counts",
+     "type": "Int",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "GeographyPlanFilters",
+   "layer": "config",
+   "description": "Plan geography/segmentation: county, plan type, plan category, market, sub-market, footprint, parent organization, contract.",
+   "columns": [
+    {
+     "name": "GeographyPlanFiltersId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "FIPS",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    },
+    {
+     "name": "PlanTypeId",
+     "type": "Int",
+     "pk": false,
+     "references": "PlanType.PlanTypeId"
+    },
+    {
+     "name": "PlanCategoryId",
+     "type": "Int",
+     "pk": false,
+     "references": "PlanCategory.PlanCategoryId"
+    },
+    {
+     "name": "MarketId",
+     "type": "Int",
+     "pk": false,
+     "references": "Market.MarketId"
+    },
+    {
+     "name": "SubMarketId",
+     "type": "Int",
+     "pk": false,
+     "references": "SubMarket.SubMarketId"
+    },
+    {
+     "name": "FootPrintId",
+     "type": "Int",
+     "pk": false,
+     "references": "FootPrint.FootprintId"
+    },
+    {
+     "name": "ParentOrganizationId",
+     "type": "Int",
+     "pk": false,
+     "references": "ParentOrganization.ParentOrganizationId"
+    },
+    {
+     "name": "ClientId",
+     "type": "Int",
+     "pk": false,
+     "references": "ClientDetails.ClientId"
+    },
+    {
+     "name": "PlanCountyIdentifier",
+     "type": "Bit",
+     "pk": false
+    },
+    {
+     "name": "ContractId",
+     "type": "Varchar(10)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "Market",
+   "layer": "config",
+   "description": "Market lookup.",
+   "columns": [
+    {
+     "name": "MarketId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "Market",
+     "type": "Varchar(75)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "SubMarket",
+   "layer": "config",
+   "description": "Sub-market lookup.",
+   "columns": [
+    {
+     "name": "SubMarketId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "SubMarket",
+     "type": "Varchar(75)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "DataFlagInfo",
+   "layer": "config",
+   "description": "Data source lookup for DataFlagCode.",
+   "columns": [
+    {
+     "name": "DataFlagCode",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "DataSource",
+     "type": "Varchar(100)",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "This table is not a part of ETL"
+   ]
+  },
+  {
+   "table": "PlanType",
+   "layer": "config",
+   "description": "Plan type lookup (HMO, PPO, ...).",
+   "columns": [
+    {
+     "name": "PlanTypeId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "PlanType",
+     "type": "Varchar(25)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "PlanGeographyMapping",
+   "layer": "config",
+   "description": "Links a plan bid (BidId) to its GeographyPlanFilters row. Use it to get a plan's parent organization, plan type and county.",
+   "columns": [
+    {
+     "name": "GeographyPlanFiltersId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "BidId",
+     "type": "Varchar(5)",
+     "pk": false,
+     "references": "County.FIPS"
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "PlanCategory",
+   "layer": "config",
+   "description": "Plan category lookup.",
+   "columns": [
+    {
+     "name": "PlanCategoryId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "PlanCategory",
+     "type": "Varchar(25)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "FootPrint",
+   "layer": "config",
+   "description": "Footprint lookup.",
+   "columns": [
+    {
+     "name": "FootprintId",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "Footprint",
+     "type": "Varchar(50)",
+     "pk": false
+    }
+   ],
+   "notes": []
+  },
+  {
+   "table": "SpecialitySourceFlagInfo",
+   "layer": "config",
+   "description": "Lookup for SpecialitySourceFlagCode (where the specialty came from).",
+   "columns": [
+    {
+     "name": "SpecialitySourceFlagCode",
+     "type": "Int",
+     "pk": true
+    },
+    {
+     "name": "SpecialitySource",
+     "type": "Varchar(255)",
+     "pk": false
+    }
+   ],
+   "notes": [
+    "This table is not a part of ETL"
+   ]
+  },
+  {
+   "table": "NPIQuickFilterMapping",
+   "layer": "config",
+   "description": "Flags whether an NPI x county is Medicare, Medicaid or supply.",
+   "columns": [
+    {
+     "name": "NPI",
+     "type": null,
+     "pk": false
+    },
+    {
+     "name": "FIPS",
+     "type": null,
+     "pk": false
+    },
+    {
+     "name": "IsMedicare",
+     "type": null,
+     "pk": false
+    },
+    {
+     "name": "IsMedicaid",
+     "type": null,
+     "pk": false
+    },
+    {
+     "name": "IsSupply",
+     "type": null,
+     "pk": false
+    }
+   ],
+   "notes": []
+  }
+ ],
+ "joinPaths": [
+  {
+   "name": "Providers in a network",
+   "sql": "NetworkProviderMapping npm JOIN ProviderLocation pl ON pl.ProviderLocationId = npm.ProviderLocationId JOIN ProviderDetails pd ON pd.NPI = pl.NPI"
+  },
+  {
+   "name": "Network owner (competitor)",
+   "sql": "NetworkProviderMapping npm JOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId"
+  },
+  {
+   "name": "Provider county / state",
+   "sql": "ProviderLocation pl JOIN County c ON c.FIPS = pl.FIPS JOIN State s ON s.StateCode = c.StateCode"
+  },
+  {
+   "name": "Provider specialty",
+   "sql": "ProviderSpecialityMapping psm JOIN Speciality sp ON sp.SpecialityCode = psm.SpecialityCode  -- add psm.SpecialityFlag = 'Primary' to count each provider once"
+  },
+  {
+   "name": "Hospitals in a network",
+   "sql": "NetworkHospitalMapping nhm JOIN HospitalDetails hd ON hd.HospitalId = nhm.HospitalId LEFT JOIN HospitalScores hs ON hs.HospitalId = hd.HospitalId"
+  },
+  {
+   "name": "Plans using a network",
+   "sql": "PlanNetworkMapping pnm JOIN PlanDetails p ON p.BidId = pnm.BidId  -- use LEFT JOIN: not every BidId is in PlanDetails"
+  },
+  {
+   "name": "Plan enrollment by county",
+   "sql": "EnrollmentDetails ed JOIN PlanNetworkMapping pnm ON pnm.BidId = ed.BidId"
+  },
+  {
+   "name": "Plan parent org / plan type / county",
+   "sql": "PlanGeographyMapping pgm JOIN GeographyPlanFilters gpf ON gpf.GeographyPlanFiltersId = pgm.GeographyPlanFiltersId JOIN PlanType pt ON pt.PlanTypeId = gpf.PlanTypeId"
+  },
+  {
+   "name": "Provider to physician group",
+   "sql": "ProviderGroupAffiliation pga JOIN GroupDetails g ON g.GroupTIN = pga.GroupTIN"
+  },
+  {
+   "name": "Provider to hospital",
+   "sql": "ProviderHospitalAffiliation pha JOIN HospitalDetails hd ON hd.HospitalNPI = CAST(pha.HospitalNPI AS varchar(10))"
+  },
+  {
+   "name": "Providers within X miles of a county",
+   "sql": "MilesIndividual_30 m WHERE m.Isochrone_FIPS = '<fips>'"
+  }
+ ],
+ "pitfalls": [
+  "Count providers with COUNT(DISTINCT pl.NPI). A provider has several locations and several specialty rows, so COUNT(*) over-counts.",
+  "Filter specialty with Speciality.HWAISpecialtyDescription (LIKE '%cardio%'), not by guessing SpecialityCode values.",
+  "FIPS, NPI, ZipCode, BidId and GroupTIN are strings (varchar). Quote them: FIPS = '48113'.",
+  "Score columns use -1 for 'not available'. Exclude -1 before AVG().",
+  "Payer names live in ParentOrganization.ParentOrganizationName (e.g. 'Humana Inc.'). Match with LIKE '%humana%' unless the exact name is known.",
+  "County names: County.CountyName may or may not include the word 'County'. Match with LIKE 'Dallas%' together with StateCode.",
+  "ProviderHospitalAffiliation.HospitalNPI is Int but HospitalDetails.HospitalNPI is varchar. CAST when joining.",
+  "PlanNetworkMapping has BidIds that are missing from PlanDetails. Use LEFT JOIN PlanDetails.",
+  "The design lists HospitalDetails.HosptitalName (typo). Use whatever the live schema says; the service sends the live column list."
+ ],
+ "excludedTables": [
+  {
+   "table": "ClientNetworkMapping",
+   "reason": "client/tenant configuration"
+  },
+  {
+   "table": "ClientDetails",
+   "reason": "client/tenant configuration"
+  },
+  {
+   "table": "ExclusiveParentOrgMapping",
+   "reason": "client-specific dropdown helper"
+  },
+  {
+   "table": "ClientDataFlagMapping",
+   "reason": "client/tenant configuration"
+  },
+  {
+   "table": "NPIClientFIPSConfig",
+   "reason": "client/tenant configuration"
+  },
+  {
+   "table": "ClientSpecialitySourceFlagMapping",
+   "reason": "client/tenant configuration"
+  },
+  {
+   "table": "LobbyUserConfig",
+   "reason": "UI configuration"
+  }
+ ]
+}

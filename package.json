@@ -1,0 +1,22 @@
+{
+  "name": "ni-chat-service",
+  "version": "1.0.0",
+  "description": "Text-to-SQL chat service for NI_hackathon_data",
+  "scripts": {
+    "test": "tsx --test src/*.test.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "express": "4.21.1",
+    "mssql": "11.0.1",
+    "node-sql-parser": "5.3.4"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.0",
+    "@types/mssql": "9.1.5",
+    "@types/node": "22.9.0",
+    "tsx": "4.19.2",
+    "typescript": "5.6.3"
+  },
+  "private": true
+}

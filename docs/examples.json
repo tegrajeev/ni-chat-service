@@ -1,0 +1,45 @@
+{
+ "note": "Few-shot examples for the text-to-SQL prompt. Written from the design schema; run each once against NI_hackathon_data and fix names (e.g. 'Humana Inc.') before the demo. Every example passes sqlGuard.",
+ "examples": [
+  {
+   "question": "How many providers does each payer have in network in Dallas County, Texas?",
+   "sql": "SELECT TOP 15 po.ParentOrganizationName, COUNT(DISTINCT pl.NPI) AS Providers\nFROM NetworkProviderMapping npm\nJOIN ProviderLocation pl ON pl.ProviderLocationId = npm.ProviderLocationId\nJOIN County c ON c.FIPS = pl.FIPS\nJOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\nWHERE c.StateCode = 'TX' AND c.CountyName LIKE 'Dallas%'\nGROUP BY po.ParentOrganizationName\nORDER BY Providers DESC"
+  },
+  {
+   "question": "Compare Humana and UnitedHealthcare cardiologists in Harris County",
+   "sql": "SELECT po.ParentOrganizationName, COUNT(DISTINCT pl.NPI) AS Cardiologists\nFROM NetworkProviderMapping npm\nJOIN ProviderLocation pl ON pl.ProviderLocationId = npm.ProviderLocationId\nJOIN County c ON c.FIPS = pl.FIPS\nJOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\nJOIN ProviderSpecialityMapping psm ON psm.NPI = pl.NPI AND psm.SpecialityFlag = 'Primary'\nJOIN Speciality sp ON sp.SpecialityCode = psm.SpecialityCode\nWHERE c.StateCode = 'TX' AND c.CountyName LIKE 'Harris%'\n  AND sp.HWAISpecialtyDescription LIKE '%cardio%'\n  AND (po.ParentOrganizationName LIKE '%humana%' OR po.ParentOrganizationName LIKE '%unitedhealth%')\nGROUP BY po.ParentOrganizationName"
+  },
+  {
+   "question": "Which specialties does Humana have fewer providers in than UnitedHealthcare in Bell County?",
+   "sql": "WITH counts AS (\n  SELECT sp.HWAISpecialtyDescription AS Specialty,\n         COUNT(DISTINCT CASE WHEN po.ParentOrganizationName LIKE '%humana%' THEN pl.NPI END) AS Humana,\n         COUNT(DISTINCT CASE WHEN po.ParentOrganizationName LIKE '%unitedhealth%' THEN pl.NPI END) AS UnitedHealthcare\n  FROM NetworkProviderMapping npm\n  JOIN ProviderLocation pl ON pl.ProviderLocationId = npm.ProviderLocationId\n  JOIN County c ON c.FIPS = pl.FIPS\n  JOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\n  JOIN ProviderSpecialityMapping psm ON psm.NPI = pl.NPI AND psm.SpecialityFlag = 'Primary'\n  JOIN Speciality sp ON sp.SpecialityCode = psm.SpecialityCode\n  WHERE c.StateCode = 'TX' AND c.CountyName LIKE 'Bell%'\n  GROUP BY sp.HWAISpecialtyDescription\n)\nSELECT TOP 20 Specialty, Humana, UnitedHealthcare, UnitedHealthcare - Humana AS Gap\nFROM counts\nWHERE UnitedHealthcare > Humana\nORDER BY Gap DESC"
+  },
+  {
+   "question": "Which hospitals in Bell County are in UnitedHealthcare networks but in no Humana network?",
+   "sql": "SELECT DISTINCT hd.HosptitalName, hd.City, hs.HealthSystem, hs.MedicareCertifiedBeds\nFROM HospitalDetails hd\nJOIN County c ON c.FIPS = hd.FIPS\nLEFT JOIN HospitalScores hs ON hs.HospitalId = hd.HospitalId\nWHERE c.StateCode = 'TX' AND c.CountyName LIKE 'Bell%'\n  AND EXISTS (\n    SELECT 1 FROM NetworkHospitalMapping nhm\n    JOIN NetworkProviderMapping npm ON npm.NetworkId = nhm.NetworkId\n    JOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\n    WHERE nhm.HospitalId = hd.HospitalId AND po.ParentOrganizationName LIKE '%unitedhealth%')\n  AND NOT EXISTS (\n    SELECT 1 FROM NetworkHospitalMapping nhm\n    JOIN NetworkProviderMapping npm ON npm.NetworkId = nhm.NetworkId\n    JOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\n    WHERE nhm.HospitalId = hd.HospitalId AND po.ParentOrganizationName LIKE '%humana%')"
+  },
+  {
+   "question": "Which networks include Baylor University Medical Center?",
+   "sql": "SELECT TOP 50 n.NetworkId, n.NetworkName, n.Carrier_Name, n.NetworkCategory\nFROM HospitalDetails hd\nJOIN NetworkHospitalMapping nhm ON nhm.HospitalId = hd.HospitalId\nJOIN Network n ON n.NetworkId = nhm.NetworkId\nWHERE hd.HosptitalName LIKE '%Baylor University Medical%'\nORDER BY n.Carrier_Name, n.NetworkName"
+  },
+  {
+   "question": "If Baylor Scott & White leaves Humana, how many Humana in-network providers in Texas are affiliated with Baylor hospitals?",
+   "sql": "SELECT COUNT(DISTINCT pl.NPI) AS AffiliatedProviders,\n       COUNT(DISTINCT pl.FIPS) AS Counties\nFROM NetworkProviderMapping npm\nJOIN ProviderLocation pl ON pl.ProviderLocationId = npm.ProviderLocationId\nJOIN County c ON c.FIPS = pl.FIPS\nJOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\nWHERE c.StateCode = 'TX'\n  AND po.ParentOrganizationName LIKE '%humana%'\n  AND EXISTS (SELECT 1 FROM ProviderHospitalAffiliation pha\n              WHERE pha.NPI = pl.NPI AND pha.HealthSystem LIKE '%Baylor Scott%')"
+  },
+  {
+   "question": "MA enrollment by payer in McLennan County",
+   "sql": "SELECT TOP 15 po.ParentOrganizationName, SUM(ed.Enrollment) AS Enrollment\nFROM EnrollmentDetails ed\nJOIN County c ON c.FIPS = ed.FIPS\nJOIN PlanGeographyMapping pgm ON pgm.BidId = ed.BidId\nJOIN GeographyPlanFilters gpf ON gpf.GeographyPlanFiltersId = pgm.GeographyPlanFiltersId AND gpf.FIPS = ed.FIPS\nJOIN ParentOrganization po ON po.ParentOrganizationId = gpf.ParentOrganizationId\nWHERE c.StateCode = 'TX' AND c.CountyName LIKE 'McLennan%'\nGROUP BY po.ParentOrganizationName\nORDER BY Enrollment DESC"
+  },
+  {
+   "question": "Top physician groups in Humana's Dallas County network by number of providers",
+   "sql": "SELECT TOP 10 g.GroupName, g.GroupTIN, COUNT(DISTINCT pl.NPI) AS InNetworkProviders\nFROM NetworkProviderMapping npm\nJOIN ProviderLocation pl ON pl.ProviderLocationId = npm.ProviderLocationId\nJOIN County c ON c.FIPS = pl.FIPS\nJOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\nJOIN ProviderGroupAffiliation pga ON pga.NPI = pl.NPI AND pga.PrimaryGroupAffiliation = 1\nJOIN GroupDetails g ON g.GroupTIN = pga.GroupTIN\nWHERE c.StateCode = 'TX' AND c.CountyName LIKE 'Dallas%' AND po.ParentOrganizationName LIKE '%humana%'\nGROUP BY g.GroupName, g.GroupTIN\nORDER BY InNetworkProviders DESC"
+  },
+  {
+   "question": "How many in-network oncologists does each payer have within 30 miles of Bell County?",
+   "sql": "WITH target AS (SELECT c.FIPS FROM County c WHERE c.StateCode = 'TX' AND c.CountyName LIKE 'Bell%')\nSELECT TOP 15 po.ParentOrganizationName, COUNT(DISTINCT m.NPI) AS OncologistsWithin30mi\nFROM MilesIndividual_30 m\nJOIN target t ON t.FIPS = m.Isochrone_FIPS\nJOIN Speciality sp ON sp.SpecialityCode = m.SpecialityCode\nJOIN ProviderLocation pl ON pl.NPI = m.NPI AND pl.FIPS = m.NPI_FIPS\nJOIN NetworkProviderMapping npm ON npm.ProviderLocationId = pl.ProviderLocationId\nJOIN ParentOrganization po ON po.ParentOrganizationId = npm.ParentOrganizationId\nWHERE sp.HWAISpecialtyDescription LIKE '%oncolog%'\nGROUP BY po.ParentOrganizationName\nORDER BY OncologistsWithin30mi DESC"
+  },
+  {
+   "question": "List the plans that use Humana networks in Texas with their star ratings",
+   "sql": "SELECT DISTINCT TOP 50 pnm.BidId, p.PlanName, p.OverAllStarRating, n.NetworkName\nFROM PlanNetworkMapping pnm\nJOIN Network n ON n.NetworkId = pnm.NetworkId\nLEFT JOIN PlanDetails p ON p.BidId = pnm.BidId\nWHERE n.Carrier_Name LIKE '%humana%'\n  AND EXISTS (SELECT 1 FROM PlanGeographyMapping pgm\n              JOIN GeographyPlanFilters gpf ON gpf.GeographyPlanFiltersId = pgm.GeographyPlanFiltersId\n              JOIN County c ON c.FIPS = gpf.FIPS\n              WHERE pgm.BidId = pnm.BidId AND c.StateCode = 'TX')\nORDER BY p.OverAllStarRating DESC"
+  }
+ ]
+}
